@@ -49,7 +49,7 @@
  
 #define MAX_LENGTH 16
 #define MIN_LENGTH 1
-#define MAX_THREADS 16 
+#define MAX_THREADS 10
 #define APPNAME "BTCrack"
 #define VERSION "1.00"
 
