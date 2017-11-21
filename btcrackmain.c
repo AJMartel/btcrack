@@ -51,7 +51,6 @@
 #include "btcrack.h"
 
 struct  BTCrackStruct BTCrackArray[MAX_THREADS];
-int	t_max;
 int 	shmid;
 int	pin_solved;
 
@@ -107,28 +106,13 @@ static int InitBTStruct (
 		char *SlaveAuRand, 
 		char *MasterSres,
 		char *SlaveSres,
-		char *MaxPinLength,
 		char *Error)
 {
 	int i;
-	int UserLengthMin=MIN_LENGTH, UserLengthMax=MAX_LENGTH;
 	struct BTCrackStruct *myBTCrack;
 
 	myBTCrack = &BTCrackArray[0];
 	memset(myBTCrack, 0, sizeof(struct BTCrackStruct));
-
-	UserLengthMax = atoi(MaxPinLength);
-	if ((UserLengthMax <= 0) || (UserLengthMax > MAX_LENGTH)) {
-		sprintf(Error, "%s", "ERROR: Invald MAX PIN length. Must be between 1 and 16");
-		return -1;
-	}
-
-
-	if (UserLengthMin > UserLengthMax) {
-		sprintf(Error, "%s", "ERROR: MIN PIN length is more than MAX PIN length.");
-		return -1;
-	}
-
 
 	 /* MASTER BD_ADDR */
 	if (StringToHex(MasterBTAddr, (char *) myBTCrack->bdaddr_m, 6) < 0) {
@@ -191,11 +175,11 @@ static int InitBTStruct (
 		return -1;
 	}
 
-	for (i=1; i<t_max; i++) {
+	for (i=1; i<MAX_THREADS; i++) {
 		memcpy(&BTCrackArray[i], myBTCrack, sizeof(struct BTCrackStruct));
 		BTCrackArray[i].pins_per_sec = 0;
 	}
-	myBTCrack = &BTCrackArray[t_max-1];
+	myBTCrack = &BTCrackArray[MAX_THREADS-1];
 
 	return 0;
 }
@@ -209,7 +193,7 @@ void *DoThreadProcessing(void *foo)
 	unsigned char pin_length;
 	char buf[50];	/* 16*3 = 48, so we are definately safe with 50 .) */
 	unsigned long i;
-	unsigned char testpin[MAX_LENGTH + 1];
+	unsigned char testpin[MAX_USER_PIN_LENGTH + 1];
 	struct BTCrackStruct *ThreadBTCrack = foo;
 	char format[7];
 
@@ -259,11 +243,11 @@ static int vbProcessPINInterval (
 	unsigned long total_pins = 0;
 	long i;
 
-	pins_per_thread = (pin_end - pin_start + 1)/t_max;
+	pins_per_thread = (pin_end - pin_start + 1)/MAX_THREADS;
 	pin_solved = 0;
 
 
-	for (i=0; i<t_max; i++)	{
+	for (i=0; i<MAX_THREADS; i++)	{
 		BTCrackArray[i].pin_start = pin_start + i*pins_per_thread;
 		BTCrackArray[i].pin_end = BTCrackArray[i].pin_start + pins_per_thread - 1;
 		BTCrackArray[i].pinlen = pin_length;
@@ -271,7 +255,7 @@ static int vbProcessPINInterval (
 		pthread_create(&g_hThreadHandle[i], NULL, DoThreadProcessing, &BTCrackArray[i]);
 	}
 
-	for (i=0; i<t_max; i++) {
+	for (i=0; i<MAX_THREADS; i++) {
 		pthread_join(g_hThreadHandle[i], NULL);
 		/* Close all thread handles upon completion. */
 		g_hThreadHandle[i] = 0;
@@ -443,7 +427,6 @@ int main(int argc, char **argv) {
 	char *SlaveAuRand = NULL;
 	char *MasterSres = NULL;
 	char *SlaveSres = NULL;
-	char *MaxPinLength = NULL;
 	char *buf = malloc(1024);
 	unsigned long PinLength, PinStart, PinEnd;
 	char sPin[512];
@@ -457,39 +440,31 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	if (argc!=11 && argc!=5) { 
-		printf("%s <#threads> <master addr> <slave addr> <filename.csv>\n", argv[0]);
-		printf("%s <#threads> <master addr> <slave addr> <in_rand> <comb_master> <comb_slave> <au_rand_m> <au_rand_s> <sres_m> <sres_s>\n", argv[0]);	
+	if (argc != CRACK_FROM_PROVIDED_PARAMETERS && argc != CRACK_FROM_CSV) { 
+		printf("%s <master addr> <slave addr> <filename.csv>\n", argv[0]);
+		printf("%s <master addr> <slave addr> <in_rand> <comb_master> <comb_slave> <au_rand_m> <au_rand_s> <sres_m> <sres_s>\n", argv[0]);	
 		free(buf);
 		return -1;
 	} 
 
-	t_max = atoi(argv[1]);
-	MasterBTAddr = strdup(argv[2]);
-	SlaveBTAddr = strdup(argv[3]);
+    MasterBTAddr = strdup(argv[MASTER_BT_ADDR_ARG_POSITION]);
+    SlaveBTAddr = strdup(argv[SLAVE_BT_ADDR_ARG_POSITION]);
 
-	if (t_max <= 0)
-		t_max = 1;
-	if (t_max > MAX_THREADS)
-		t_max = MAX_THREADS;
 
-	if (argc <= 5) {
-		read_csv(argv[4], &InRand, &MasterCombKey, &SlaveCombKey, &MasterAuRand, &SlaveAuRand, &MasterSres, &SlaveSres, buf);
+	if (argc == CRACK_FROM_CSV) {
+		read_csv(argv[CSV_ARG_POSITION], &InRand, &MasterCombKey, &SlaveCombKey, &MasterAuRand, &SlaveAuRand, &MasterSres, &SlaveSres, buf);
 	}
 	else {
-		InRand = strdup(argv[4]);
-		MasterCombKey = strdup(argv[5]);
-		SlaveCombKey = strdup(argv[6]);
-		MasterAuRand = strdup(argv[7]);
-		SlaveAuRand = strdup(argv[8]);
-		MasterSres = strdup(argv[9]);
-		SlaveSres = strdup(argv[10]);
+		InRand  = strdup(argv[IN_RAND_ARG_POSITION]);
+		MasterSres  = strdup(argv[SRES_MASTER_ARG_POSITION]);
+		SlaveSres   = strdup(argv[SRES_SLAVE_ARG_POSITION]);
+		MasterCombKey   = strdup(argv[COMB_MASTER_ARG_POSITION]);
+		SlaveCombKey    = strdup(argv[COMB_SLAVE_ARG_POSITION]);
+		MasterAuRand    = strdup(argv[AU_RAND_MASTER_ARG_POSITION]);
+		SlaveAuRand     = strdup(argv[AU_RAND_SLAVE_ARG_POSITION]);
 	}
-                
 
-	MaxPinLength = strdup("16");
-
-	if (InitBTStruct(MasterBTAddr, SlaveBTAddr, InRand, MasterCombKey, SlaveCombKey, MasterAuRand, SlaveAuRand, MasterSres, SlaveSres, MaxPinLength, buf) < 0) {
+	if (InitBTStruct(MasterBTAddr, SlaveBTAddr, InRand, MasterCombKey, SlaveCombKey, MasterAuRand, SlaveAuRand, MasterSres, SlaveSres, buf) < 0) {
 		printf("Error occured: %s\n", buf);
 		free(MasterBTAddr);
 		free(SlaveBTAddr);
@@ -500,7 +475,6 @@ int main(int argc, char **argv) {
 		free(SlaveAuRand);
 		free(MasterSres);
 		free(SlaveSres);
-		free(MaxPinLength);
 		free(buf);
 		return -1;
 	}
@@ -521,7 +495,7 @@ int main(int argc, char **argv) {
 	sPin[0] = '\0';
 
 	count = 1;
-	for (i = 1; i <= atoi(MaxPinLength); i++) {
+	for (i = 1; i <= MAX_PIN_LENGTH; i++) {
 		PinLength = i;
 		PinStart = 0;
 		count *= 10;
@@ -531,7 +505,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	free(MaxPinLength);
 	mytime = (time(NULL) - mytime) + 1;
 
 	if (sPin[0]) {

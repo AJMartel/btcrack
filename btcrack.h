@@ -47,12 +47,27 @@
  ***********************************************************
  */
  
-#define MAX_LENGTH 16
+#define MAX_USER_PIN_LENGTH 16       // This is "technically" a max pin length for a user, looks like this feature was not implemented.
+#define MAX_PIN_LENGTH 16   // This is the maximum allowable pin length for BT Classic
 #define MIN_LENGTH 1
-#define MAX_THREADS 10
+#define MAX_THREADS 2
 #define APPNAME "BTCrack"
 #define VERSION "1.00"
 
+// CLI Argument positions
+#define MASTER_BT_ADDR_ARG_POSITION 1
+#define SLAVE_BT_ADDR_ARG_POSITION  2
+#define CSV_ARG_POSITION            3
+#define IN_RAND_ARG_POSITION        3
+#define COMB_MASTER_ARG_POSITION    4
+#define COMB_SLAVE_ARG_POSITION     5
+#define AU_RAND_MASTER_ARG_POSITION 6
+#define AU_RAND_SLAVE_ARG_POSITION  7
+#define SRES_MASTER_ARG_POSITION    8
+#define SRES_SLAVE_ARG_POSITION     9
+
+#define CRACK_FROM_CSV                 4
+#define CRACK_FROM_PROVIDED_PARAMETERS 10
 
 struct saferp_key {
    unsigned char K[33][16];

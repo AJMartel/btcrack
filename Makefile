@@ -1,4 +1,5 @@
-CC          ?= gcc
+#CC          ?= gcc
+CC          = gcc
 INSTALL     ?= /usr/bin/install
 DESTDIR     ?=
 PREFIX      ?= /usr/local
@@ -6,7 +7,7 @@ INSTALL_DIR ?= $(DESTDIR)/$(PREFIX)/bin
 
 OBJS = btcrack.o btcrackmain.o
 
-CFLAGS  ?= -O3 -Wall
+CFLAGS  ?= -O3 -Wall -D_GNU_SOURCE
 LDFLAGS ?=
 
 all: btcrack
